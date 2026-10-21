@@ -39,7 +39,8 @@ class SeismoM5Client:
                 if resp.status == 401:
                     raise SeismoM5AuthError("Invalid web interface credentials")
                 if resp.status >= 400:
-                    raise SeismoM5Error(f"HTTP {resp.status}")
+                    detail = (await resp.text())[:200]
+                    raise SeismoM5Error(f"HTTP {resp.status}: {detail}")
                 return await resp.json(content_type=None)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise SeismoM5Error(f"Cannot reach device: {err}") from err

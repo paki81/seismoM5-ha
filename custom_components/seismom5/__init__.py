@@ -73,6 +73,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: SeismoM5ConfigEntry) ->
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
+async def _body_params(request: web.Request) -> dict:
+    """Accept both JSON and form-encoded bodies."""
+    try:
+        data = await request.json()
+        if isinstance(data, dict):
+            return data
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        return {k: v for k, v in (await request.post()).items()}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _coordinator(hass: HomeAssistant, entry_id: str | None) -> SeismoM5Coordinator | None:
     """Pick the coordinator for a config entry (first one if not specified)."""
     entries = [e for e in hass.config_entries.async_entries(DOMAIN) if not e.disabled_by]
@@ -123,7 +137,7 @@ class SeismoM5SettingsView(HomeAssistantView):
         if coordinator is None:
             return web.json_response({"error": "no_seismom5_entry"}, status=404)
         try:
-            body = await request.post()
+            body = await _body_params(request)
             data = {k: v for k, v in body.items() if v != ""}
             result = await coordinator.client.update_settings(**data)
         except Exception as err:  # noqa: BLE001
@@ -144,7 +158,7 @@ class SeismoM5ActionView(HomeAssistantView):
         if coordinator is None:
             return web.json_response({"error": "no_seismom5_entry"}, status=404)
         try:
-            body = await request.post()
+            body = await _body_params(request)
             result = await coordinator.client.action(body.get("do", ""))
         except Exception as err:  # noqa: BLE001
             return web.json_response({"error": str(err)}, status=502)

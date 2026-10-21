@@ -167,8 +167,7 @@ class SeismoM5Card extends HTMLElement {
     b.querySelectorAll('[data-act]').forEach(el => el.onclick = () =>
       this._press(el.dataset.act, el.dataset.act === 'restart' ? 'Restart the device?' : el.dataset.act === 'recalibrate' ? 'Recalibrate the MPU? Keep the device still.' : null));
     const post = (k, v) => {
-      const d = new URLSearchParams(); d.set(k, String(v));
-      this._hass.callApi('POST', 'seismom5/settings' + (this._cfg.entry_id ? '?entry=' + this._cfg.entry_id : ''), d)
+      this._hass.callApi('POST', 'seismom5/settings' + (this._cfg.entry_id ? '?entry=' + this._cfg.entry_id : ''), { [k]: String(v) })
         .catch(e => { const b = this.shadowRoot.getElementById('berr'); if (b) b.textContent = 'Save failed: ' + (e.body?.error || e.message || e); });
     };
     b.querySelectorAll('[data-sw]').forEach(el => el.onchange = () => post(el.dataset.sw, el.checked ? '1' : '0'));
@@ -269,4 +268,4 @@ customElements.define('seismom5-card', SeismoM5Card);
 customElements.define('seismom5-card-editor', SeismoM5CardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({ type: 'seismom5-card', name: 'SeismoM5', description: 'Live earthquake graph + settings panel', preview: true });
-console.info('seismom5-card v1.1.2 loaded');
+console.info('seismom5-card v1.1.3 loaded');
