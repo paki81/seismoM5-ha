@@ -1,4 +1,14 @@
+<p align="center">
+  <img src="logo.svg" alt="seismoM5" width="240"/>
+</p>
+
 # SeismoM5 for Home Assistant
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![website](https://img.shields.io/badge/aswell.eu-site-blue.svg)](https://www.aswell.eu)
+[![firmware](https://img.shields.io/badge/firmware-seismoM5-green.svg)](https://github.com/paki81/seismoM5)
+
+Developed by [aswell.eu](https://www.aswell.eu) — fork of the original [febalci/seismoM5](https://github.com/febalci/seismoM5).
 
 Custom Home Assistant integration + Lovelace card for [SeismoM5](https://github.com/paki81/seismoM5) — the M5StickC/M5StickC Plus earthquake sensor.
 
@@ -41,6 +51,12 @@ poll_ms: 500
 It polls `GET /api/seismom5/status` — an authenticated proxy endpoint exposed by the integration — so it works over HTTPS even though the device itself is plain HTTP. If the proxy is unavailable it falls back to an entity (`entity: sensor.seismom5_pga`).
 
 Multiple devices: pass `entry_id: <config-entry-id>` to select which one the card follows.
+
+> **"Custom element doesn't exist"?** After installing the integration,
+> force-reload the browser (Ctrl/Cmd+Shift+R) — the card JS is injected when
+> the integration loads, and browsers cache the frontend aggressively.
+
+
 
 ## Automation example
 
