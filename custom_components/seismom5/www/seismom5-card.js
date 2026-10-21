@@ -52,7 +52,7 @@ a.link{color:#3b9eff;font-size:12px;text-decoration:none;display:inline-block;ma
 
 const SWITCHES = [
   ['sta_lta', 'STA/LTA method'],
-  ['speaker', 'Speaker'],
+  ['speaker_enable', 'Speaker'],
   ['continuous_graph', 'Continuous graph'],
   ['master', 'Master mode'],
 ];
@@ -66,14 +66,14 @@ const NUMBERS = [
   ['update_period', 'Update period (s)', 'Detection'],
 ];
 const TEXTS = [
-  ['mqtt_host', 'MQTT host', 'Network'],
-  ['mqtt_user', 'MQTT username', 'Network'],
-  ['mqtt_pass', 'MQTT password', 'Network', 'password'],
-  ['mqtt_base', 'MQTT base topic', 'Network'],
-  ['mqtt_slave_topic', 'Slave state topic', 'Network'],
-  ['ha_prefix', 'HA discovery prefix', 'Network'],
-  ['wifi_ssid', 'WiFi SSID', 'Network'],
-  ['wifi_pass', 'WiFi password', 'Network', 'password'],
+  ['mqtt_host', 'MQTT host'],
+  ['mqtt_user', 'MQTT username'],
+  ['mqtt_pass', 'MQTT password', 'password'],
+  ['mqtt_base', 'MQTT base topic'],
+  ['mqtt_slave_topic', 'Slave state topic'],
+  ['ha_prefix', 'HA discovery prefix'],
+  ['wifi_ssid', 'WiFi SSID'],
+  ['wifi_pass', 'WiFi password', 'password'],
 ];
 
 class SeismoM5Card extends HTMLElement {
@@ -128,21 +128,9 @@ class SeismoM5Card extends HTMLElement {
 
   disconnectedCallback() { clearInterval(this._timer); }
 
-  /* ---- entity registry lookup: unique_id = <mac>_<key> ---- */
-  _find(key, domain) {
-    if (!this._hass || !this._hass.entities) return null;
-    for (const [id, e] of Object.entries(this._hass.entities)) {
-      if (e.platform === 'seismom5' && e.unique_id && e.unique_id.endsWith('_' + key) && id.startsWith(domain + '.')) return id;
-    }
-    return null;
-  }
-
-  _device() {
-    if (!this._hass) return null;
-    for (const e of Object.values(this._hass.entities || {}))
-      if (e.platform === 'seismom5' && this._hass.devices && this._hass.devices[e.device_id])
-        return this._hass.devices[e.device_id];
-    return null;
+  _api(path, body) {
+    return this._hass.callApi(body === undefined ? 'GET' : 'POST', 'seismom5/' + path +
+      (this._cfg.entry_id ? '?entry=' + this._cfg.entry_id : ''), body);
   }
 
   _flip(on) {
@@ -151,11 +139,10 @@ class SeismoM5Card extends HTMLElement {
     if (on) this._fillBack();
   }
 
-  _press(key, msg) {
-    const id = this._find(key, 'button');
-    if (!id) { alert('Requires the seismoM5 integration.'); return; }
+  async _press(key, msg) {
     if (msg && !confirm(msg)) return;
-    this._hass.callService('button', 'press', { entity_id: id });
+    try { await this._api('action', { do: key }); }
+    catch (e) { alert('Request failed: ' + (e.body?.error || e.message || e)); }
   }
 
   /* ---------- back panel ---------- */
@@ -182,50 +169,40 @@ class SeismoM5Card extends HTMLElement {
 
     b.querySelectorAll('[data-act]').forEach(el => el.onclick = () =>
       this._press(el.dataset.act, el.dataset.act === 'restart' ? 'Restart the device?' : el.dataset.act === 'recalibrate' ? 'Recalibrate the MPU? Keep the device still.' : null));
-    b.querySelectorAll('[data-sw]').forEach(el => el.onchange = () => {
-      const id = this._find(el.dataset.sw, 'switch');
-      id ? this._hass.callService('switch', el.checked ? 'turn_on' : 'turn_off', { entity_id: id }) : el.checked = !el.checked;
-    });
-    b.querySelectorAll('[data-num]').forEach(el => el.onchange = () => {
-      const id = this._find(el.dataset.num, 'number');
-      if (id) this._hass.callService('number', 'set_value', { entity_id: id, value: parseFloat(el.value) });
-    });
-    b.querySelectorAll('[data-sel]').forEach(el => el.onchange = () => {
-      const id = this._find(el.dataset.sel, 'select');
-      if (id) this._hass.callService('select', 'select_option', { entity_id: id, option: el.value });
-    });
-    b.querySelectorAll('[data-txt]').forEach(el => el.onchange = () => {
-      const id = this._find(el.dataset.txt, 'text');
-      if (id) this._hass.callService('text', 'set_value', { entity_id: id, value: el.value });
-    });
+    const post = (k, v) => {
+      const d = new URLSearchParams(); d.set(k, String(v));
+      this._hass.callApi('POST', 'seismom5/settings' + (this._cfg.entry_id ? '?entry=' + this._cfg.entry_id : ''), d)
+        .catch(e => { const b = this.shadowRoot.getElementById('berr'); if (b) b.textContent = 'Save failed: ' + (e.body?.error || e.message || e); });
+    };
+    b.querySelectorAll('[data-sw]').forEach(el => el.onchange = () => post(el.dataset.sw, el.checked ? '1' : '0'));
+    b.querySelectorAll('[data-num]').forEach(el => el.onchange = () => post(el.dataset.num, el.value));
+    b.querySelectorAll('[data-sel]').forEach(el => el.onchange = () => post(el.dataset.sel, el.selectedIndex));
+    b.querySelectorAll('[data-txt]').forEach(el => el.onchange = () => post(el.dataset.txt, el.value));
   }
 
-  _fillBack() {
+  async _fillBack() {
     const b = this.shadowRoot.getElementById('back-body');
-    let found = false;
-    b.querySelectorAll('[data-sw],[data-num],[data-sel],[data-txt]').forEach(el => {
-      const k = el.dataset.sw || el.dataset.num || el.dataset.sel || el.dataset.txt;
-      const dom = el.dataset.sw ? 'switch' : el.dataset.num ? 'number' : el.dataset.sel ? 'select' : 'text';
-      const id = this._find(k, dom);
-      if (!id) { el.disabled = true; el.classList.add('miss'); return; }
-      found = true;
-      const st = this._hass.states[id]; if (!st) return;
-      if (el.dataset.sw !== undefined) el.checked = st.state === 'on';
-      else if (el.type === 'password') el.placeholder = st.state ? st.state : 'not set';
-      else if (el.tagName === 'SELECT') el.value = st.state;
-      else el.value = st.state === 'unavailable' || st.state === 'unknown' ? '' : st.state;
+    const berr = this.shadowRoot.getElementById('berr');
+    let s;
+    try { s = await this._api('settings'); } catch (e) { s = null; }
+    if (!s || s.error) { berr.textContent = 'seismoM5 integration not loaded: install and configure it to edit settings from here.'; return; }
+    berr.textContent = '';
+    b.querySelectorAll('[data-sw]').forEach(el => { if (el.dataset.sw in s) el.checked = !!s[el.dataset.sw]; });
+    b.querySelectorAll('[data-num]').forEach(el => { if (el.dataset.num in s) el.value = s[el.dataset.num]; });
+    b.querySelectorAll('[data-sel]').forEach(el => { if (el.dataset.sel in s) el.selectedIndex = s[el.dataset.sel]; });
+    b.querySelectorAll('[data-txt]').forEach(el => {
+      if (el.type === 'password') { el.value = ''; el.placeholder = s['has_' + el.dataset.txt] ? 'unchanged' : 'not set'; }
+      else if (el.dataset.txt in s) el.value = s[el.dataset.txt];
     });
-    const dev = this._device();
     const link = this.shadowRoot.getElementById('webui');
-    if (dev && dev.configuration_url) { link.href = dev.configuration_url; link.style.display = 'inline-block'; }
-    this.shadowRoot.getElementById('berr').textContent = found ? '' : 'seismoM5 integration not loaded: install it to edit settings from here.';
+    if (this._last?.wifi?.ip) { link.href = 'http://' + this._last.wifi.ip; link.style.display = 'inline-block'; }
   }
 
   /* ---------- front ---------- */
   async _tick() {
     let s = null;
     try {
-      s = await this._hass.callApi('GET', 'seismom5/status' + (this._cfg.entry_id ? '?entry=' + this._cfg.entry_id : ''));
+      s = await this._api('status');
     } catch (e) {
       if (this._cfg.entity && this._hass.states[this._cfg.entity]) {
         const st = this._hass.states[this._cfg.entity];
@@ -236,6 +213,7 @@ class SeismoM5Card extends HTMLElement {
     const e = this.shadowRoot.getElementById('err');
     if (!s || s.error) { if (e) { e.style.display = 'block'; e.textContent = 'SeismoM5 unreachable'; } return; }
     e.style.display = 'none';
+    this._last = s;
     this._render(s);
   }
 
@@ -294,4 +272,4 @@ customElements.define('seismom5-card', SeismoM5Card);
 customElements.define('seismom5-card-editor', SeismoM5CardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({ type: 'seismom5-card', name: 'SeismoM5', description: 'Live earthquake graph + settings panel', preview: true });
-console.info('seismom5-card v1.1.0 loaded');
+console.info('seismom5-card v1.1.1 loaded');
