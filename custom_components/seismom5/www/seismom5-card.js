@@ -121,10 +121,7 @@ class SeismoM5Card extends HTMLElement {
     this._timer = setInterval(() => this._tick(), this._poll);
   }
 
-  set hass(h) {
-    this._hass = h;
-    if (this._flipped && !this._ent) this._fillBack();
-  }
+  set hass(h) { this._hass = h; }
 
   disconnectedCallback() { clearInterval(this._timer); }
 
@@ -272,4 +269,4 @@ customElements.define('seismom5-card', SeismoM5Card);
 customElements.define('seismom5-card-editor', SeismoM5CardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({ type: 'seismom5-card', name: 'SeismoM5', description: 'Live earthquake graph + settings panel', preview: true });
-console.info('seismom5-card v1.1.1 loaded');
+console.info('seismom5-card v1.1.2 loaded');
