@@ -52,6 +52,11 @@ It polls `GET /api/seismom5/status` — an authenticated proxy endpoint exposed 
 
 Multiple devices: pass `entry_id: <config-entry-id>` to select which one the card follows.
 
+The card has a **flip panel**: the header icons offer one-tap **Recalibrate**,
+**Restart** and a ⚙ gear that rotates the card to a settings back side —
+every switch, number, select and text setting of the device is editable
+directly from the dashboard (mapped to the integration entities).
+
 > **"Custom element doesn't exist"?** After installing the integration,
 > force-reload the browser (Ctrl/Cmd+Shift+R) — the card JS is injected when
 > the integration loads, and browsers cache the frontend aggressively.
