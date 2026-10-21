@@ -45,23 +45,29 @@ The card is registered automatically by the integration. Add it to a dashboard:
 ```yaml
 type: custom:seismom5-card
 name: SeismoM5
-poll_ms: 500
 ```
 
-It polls `GET /api/seismom5/status` — an authenticated proxy endpoint exposed by the integration — so it works over HTTPS even though the device itself is plain HTTP. If the proxy is unavailable it falls back to an entity (`entity: sensor.seismom5_pga`).
+**Layout**
+- Fills the height of its container: in a *sections* dashboard resize it with the grid (default 12×5, min 6×4); the chart grows or shrinks to fit.
+- In masonry dashboards it uses its natural height; set `height: 360px` to force one.
+- Responsive: on narrow cards secondary KPIs, button labels and tab labels collapse automatically.
 
-Multiple devices: pass `entry_id: <config-entry-id>` to select which one the card follows.
+**Front**: status, PGA with threshold bar, trigger, peak of the visible window, STA/LTA ratio, live chart with trigger line and earthquake bands, MQTT / WiFi / uptime indicators. The footer has **Calibrate**, **Restart** (tap twice to confirm) and the settings button.
 
-The card has a **flip panel**: the header icons offer one-tap **Recalibrate**,
-**Restart** and a ⚙ gear that rotates the card to a settings back side —
-every switch, number, select and text setting of the device is editable
-directly from the dashboard (mapped to the integration entities).
+**Back** (settings button): tabbed panel — *Detection*, *Device*, *MQTT*, *Network*, *System* — with switches, numeric fields, segmented selectors and password fields. Every change is saved on the device immediately (green confirmation). *System* shows device info and quick actions (publish event, republish discovery, open the device web UI).
 
-> **"Custom element doesn't exist"?** After installing the integration,
-> force-reload the browser (Ctrl/Cmd+Shift+R) — the card JS is injected when
-> the integration loads, and browsers cache the frontend aggressively.
+| Option | Default | Description |
+|---|---|---|
+| `name` | `SeismoM5` | Title |
+| `poll_ms` | `500` | Live polling interval |
+| `max_points` | `300` | Points kept in the chart |
+| `height` | — | Fixed height (masonry only) |
+| `entry_id` | first entry | Config entry to follow when you have several devices |
 
+The card talks to the authenticated proxy endpoints of the integration (`/api/seismom5/status`, `/settings`, `/action`), so it works over HTTPS even though the device itself is plain HTTP.
 
+> **"Custom element doesn't exist"?** After installing or updating, force-reload
+> the browser (Ctrl/Cmd+Shift+R) — browsers cache the frontend aggressively.
 
 ## Automation example
 
